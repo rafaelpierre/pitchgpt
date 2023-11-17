@@ -1,6 +1,5 @@
 import pytest
 from pitchgpt.data.pitchfork import PitchforkDataFetcher
-from tests.fixtures.pitchfork import url
 import logging
 
 @pytest.mark.asyncio

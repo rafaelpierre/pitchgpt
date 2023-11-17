@@ -1,18 +1,13 @@
-import tenacity
 from httpx import AsyncClient
 from pydantic import BaseModel
 import pydantic
 from pitchgpt.data.models.headers import ApiHeaders
 from tenacity import (
-    AsyncRetrying,
-    RetryError,
     wait_random,
     wait_fixed,
     stop_after_attempt,
     retry
 )
-import random
-import time
 import asyncio
 
 class PitchforkDataFetcher(BaseModel):

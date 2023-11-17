@@ -1,5 +1,4 @@
 from pitchgpt.data.models.headers import ApiHeaders
-from tests.fixtures.models import headers
 import logging
 
 def test_headers(headers):
