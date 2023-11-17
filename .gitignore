@@ -1,3 +1,5 @@
 .venv
 __pycache__
 .tox
+.coverage
+coverage.xml
