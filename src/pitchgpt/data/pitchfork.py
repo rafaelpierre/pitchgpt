@@ -1,31 +1,27 @@
-from httpx import AsyncClient
+from httpx import AsyncClient, HTTPError
 from pydantic import BaseModel
-import pydantic
-from pitchgpt.data.models.headers import ApiHeaders
+from pitchgpt.config import PitchGptConfig
 from tenacity import (
     wait_random,
     wait_fixed,
     stop_after_attempt,
-    retry
+    retry,
+    retry_if_exception_type
 )
 import asyncio
+import logging
 
 class PitchforkDataFetcher(BaseModel):
 
-    api_headers: ApiHeaders = ApiHeaders()
+    config: PitchGptConfig = PitchGptConfig()
     start: int = 1
     size: int = 12
-    base_url: str = "https://pitchfork.com/api/v2/search/?types=reviews&hierarchy=sections%2Freviews%2Falbums%2Cchannels%2Freviews%2Falbums&sort=publishdate%20desc%2Cposition%20asc&size={size}&start={start}"
-
-    @pydantic.computed_field()
-    @property
-    def headers(self) -> dict:
-        return self.api_headers.model_dump(by_alias = True)
 
     @retry(
         stop = stop_after_attempt(10),
         reraise = True,
-        wait = wait_fixed(2) + wait_random(0, 5)
+        wait = wait_fixed(2) + wait_random(0, 5),
+        retry = retry_if_exception_type(HTTPError)
     )
     async def dispatch(
         self,
@@ -33,14 +29,15 @@ class PitchforkDataFetcher(BaseModel):
         size: int,
     ):
 
-        url = self.base_url.format(start = start, size = size)
+        url = self.config.base_url.format(start = start, size = size)
+        logging.info(f"URL: {url}")
 
         async with AsyncClient(http2=True) as client:
             response = await client.get(
                 url = url,
-                headers = self.headers
+                headers = self.config.headers
             )
-
+            logging.info(f"Response: {response.json()}")
             return response.json()
 
     async def fetch_all(self, num_pages: int = 10, parallelism: int = 2):
@@ -48,6 +45,7 @@ class PitchforkDataFetcher(BaseModel):
         results = []
         start = self.start
         current_batch = 0
+        logging.info(f"parallelism={parallelism}, num_pages={num_pages}")
 
         while start < num_pages:
             tasks = [

@@ -1,24 +1,35 @@
 import pytest
 from pitchgpt.data.pitchfork import PitchforkDataFetcher
 import logging
+from unittest import mock
+from asyncio import Future
+from pitchgpt.data.pitchfork import PitchforkDataFetcher
+
+class AsyncMock(mock.MagicMock):
+    async def __call__(self, *args, **kwargs):
+        return super(AsyncMock, self).__call__(*args, **kwargs)
 
 @pytest.mark.asyncio
-async def test_dispatch(url):
+@mock.patch("httpx.AsyncClient.get", AsyncMock())
+async def test_dispatch():
+
+    from httpx import AsyncClient
     fetcher = PitchforkDataFetcher()
     response = await fetcher.dispatch(start = 1, size = 12)
     logging.info(response)
 
-    assert response
-    assert isinstance(response, dict)
+    AsyncClient.get.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_fetch_all(url):
+@mock.patch("pitchgpt.data.pitchfork.PitchforkDataFetcher.dispatch", AsyncMock())
+async def test_fetch_all():
+
+    
+
     fetcher = PitchforkDataFetcher()
-    response = await fetcher.fetch_all(
-        num_pages = 100,
+    await fetcher.fetch_all(
+        num_pages = 10,
         parallelism = 10
     )
 
-    logging.info(response)
-    assert response
-    assert isinstance(response[0], dict)
+    PitchforkDataFetcher.dispatch.assert_called()
