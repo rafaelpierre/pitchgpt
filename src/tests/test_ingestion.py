@@ -2,7 +2,6 @@ import pytest
 from pitchgpt.data.pitchfork import PitchforkDataFetcher
 import logging
 from unittest import mock
-from asyncio import Future
 from pitchgpt.data.pitchfork import PitchforkDataFetcher
 
 class AsyncMock(mock.MagicMock):

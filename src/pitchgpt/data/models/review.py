@@ -1,4 +1,4 @@
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel
 
 class AlbumReview(BaseModel):
 
