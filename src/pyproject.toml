@@ -12,6 +12,10 @@ chromadb = "^0.4.17"
 tenacity = "^8.2.3"
 pydantic = "^2.5.1"
 tox = "^4.11.3"
+beautifulsoup4 = "4.12.2"
+lxml = "^4.9.3"
+nest-asyncio = "^1.5.8"
+requests-html = "^0.10.0"
 
 
 [build-system]

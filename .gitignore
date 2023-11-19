@@ -5,3 +5,4 @@ __pycache__
 coverage.xml
 .coverage.*
 .ruff_cache
+poetry.lock

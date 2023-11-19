@@ -1,4 +1,5 @@
 from httpx import AsyncClient, HTTPError
+from requests_html import HTMLSession
 from pydantic import BaseModel
 from pitchgpt.config import PitchGptConfig
 from tenacity import (
@@ -10,8 +11,12 @@ from tenacity import (
 )
 import asyncio
 import logging
+from bs4 import BeautifulSoup
+import nest_asyncio
 
-class PitchforkDataFetcher(BaseModel):
+nest_asyncio.apply()
+
+class ReviewFetcher(BaseModel):
 
     config: PitchGptConfig = PitchGptConfig()
     start: int = 1
@@ -40,14 +45,14 @@ class PitchforkDataFetcher(BaseModel):
             logging.info(f"Response: {response.json()}")
             return response.json()
 
-    async def fetch_all(self, num_pages: int = 10, parallelism: int = 2):
+    async def fetch(self, num_pages: int = 10, parallelism: int = 2):
         
         results = []
         start = self.start
         current_batch = 0
         logging.info(f"parallelism={parallelism}, num_pages={num_pages}")
 
-        while start < num_pages:
+        while start <= num_pages:
             tasks = [
                 asyncio.create_task(self.dispatch(start = page, size = self.size))
                 for page
@@ -62,3 +67,33 @@ class PitchforkDataFetcher(BaseModel):
             start += len(responses)
 
         return results
+    
+    def get_review_text(self, url_suffix: str):
+        
+        url = "https://pitchfork.com{url_suffix}".format(url_suffix = url_suffix)
+        logging.info(f"URL: {url}")
+        session = HTMLSession()
+
+        r = session.get(url)
+        r.html.render(sleep = 1)
+        div_selector_options = [
+            "[class='contents dropcap']",
+            "[class='body__inner-container']"
+        ]
+        elements = []
+        selector_idx = 0
+
+        while not elements and (selector_idx < len(div_selector_options)):
+            selector = div_selector_options[selector_idx]
+            elements = r.html.find(selector)
+            logging.info(f"Elements: {elements}")
+            if elements:
+                paragraphs = elements[0].find("p")
+                break
+            logging.info(f"Paragraphs")
+            selector_idx += 1
+
+        review_text = "\n".join([paragraph.text for paragraph in paragraphs])
+        logging.info(review_text)
+        
+        return review_text
