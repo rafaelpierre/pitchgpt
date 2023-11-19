@@ -11,7 +11,8 @@ from tenacity import (
 )
 import asyncio
 import logging
-import pyppeteer
+from requests import ConnectionError
+from pyppeteer.errors import PageError
 
 
 class ReviewFetcher(BaseModel):
@@ -104,7 +105,19 @@ class ReviewFetcher(BaseModel):
         
         return text
     
-    async def aget_review_text(self, url_suffix: str, sleep: int = 2, session = AsyncHTMLSession()):
+    @retry(
+        stop = stop_after_attempt(10),
+        reraise = True,
+        wait = wait_fixed(2) + wait_random(0, 5),
+        retry = retry_if_exception_type((ConnectionError, PageError))
+    )
+    async def aget_review_text(
+        self,
+        url_suffix: str,
+        sleep: int = 2,
+        timeout: int = 10,
+        session = AsyncHTMLSession()
+    ):
         
         loop = asyncio.get_event_loop()
         session.loop = loop
@@ -112,8 +125,8 @@ class ReviewFetcher(BaseModel):
         url = "https://pitchfork.com{url_suffix}".format(url_suffix = url_suffix)
         logging.info(f"URL: {url}")
 
-        r = await session.get(url)
-        await r.html.arender(sleep = sleep)
+        r = await session.get(url, verify = False)
+        await r.html.arender(sleep = sleep, timeout = timeout)
         
         text = self.parse_text(html = r.html)
         logging.info(text)
