@@ -1,6 +1,7 @@
 import pytest
 from pitchgpt.data.pitchfork import ReviewFetcher
 import logging
+import asyncio
 
 def test_get_review():
 
@@ -11,11 +12,12 @@ def test_get_review():
 
     assert review
 
-def test_aget_review():
+@pytest.mark.asyncio
+async def test_aget_review():
 
     suffix = "/reviews/albums/danny-brown-quaranta/"
     fetcher = ReviewFetcher()
-    review = fetcher.aget_review_text(url_suffix = suffix, sleep = 1)
+    review = await fetcher.aget_review_text(url_suffix = suffix, sleep = 3)
     logging.info(review)
 
     assert review

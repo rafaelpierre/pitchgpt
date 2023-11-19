@@ -11,9 +11,8 @@ from tenacity import (
 )
 import asyncio
 import logging
-import nest_asyncio
+import pyppeteer
 
-nest_asyncio.apply()
 
 class ReviewFetcher(BaseModel):
 
@@ -66,65 +65,57 @@ class ReviewFetcher(BaseModel):
 
         return results
     
-    def get_review_text(self, url_suffix: str, sleep: int = 0):
+    def parse_text(
+        self,
+        html,
+        selector_options = ["contents dropcap","body__inner-container"]
+    ):
+        elements = []
+        selector_idx = 0
+
+        while not elements and (selector_idx < len(selector_options)):
+            selector = selector_options[selector_idx]
+            elements = html.find(f"[class='{selector}']")
+            logging.info(f"Elements: {elements}")
+            if elements:
+                paragraphs = elements[0].find("p")
+                break
+            logging.info(f"Paragraphs")
+            selector_idx += 1
+
+        text = "\n".join([paragraph.text for paragraph in paragraphs])
+        return text
+    
+    def get_review_text(
+        self,
+        url_suffix: str,
+        sleep: int = 0,
+        session = HTMLSession()
+    ):
         
         url = "https://pitchfork.com{url_suffix}".format(url_suffix = url_suffix)
         logging.info(f"URL: {url}")
-        session = HTMLSession()
 
         r = session.get(url)
-        if r.status_code != 200:
-            raise HTTPError(f"HTTP Error: {r.status_code}")
-        
         r.html.render(sleep = sleep)
-        div_selector_options = [
-            "[class='contents dropcap']",
-            "[class='body__inner-container']"
-        ]
-        elements = []
-        selector_idx = 0
-
-        while not elements and (selector_idx < len(div_selector_options)):
-            selector = div_selector_options[selector_idx]
-            elements = r.html.find(selector)
-            logging.info(f"Elements: {elements}")
-            if elements:
-                paragraphs = elements[0].find("p")
-                break
-            logging.info(f"Paragraphs")
-            selector_idx += 1
-
-        review_text = "\n".join([paragraph.text for paragraph in paragraphs])
-        logging.info(review_text)
         
-        return review_text
+        text = self.parse_text(html = r.html)
+        logging.info(text)
+        
+        return text
     
-    async def aget_review_text(self, url_suffix: str, sleep: int = 0):
+    async def aget_review_text(self, url_suffix: str, sleep: int = 2, session = AsyncHTMLSession()):
         
+        loop = asyncio.get_event_loop()
+        session.loop = loop
+
         url = "https://pitchfork.com{url_suffix}".format(url_suffix = url_suffix)
         logging.info(f"URL: {url}")
-        asession = AsyncHTMLSession()
 
-        r = await asession.get(url)
+        r = await session.get(url)
         await r.html.arender(sleep = sleep)
-        div_selector_options = [
-            "[class='contents dropcap']",
-            "[class='body__inner-container']"
-        ]
-        elements = []
-        selector_idx = 0
-
-        while not elements and (selector_idx < len(div_selector_options)):
-            selector = div_selector_options[selector_idx]
-            elements = r.html.find(selector)
-            logging.info(f"Elements: {elements}")
-            if elements:
-                paragraphs = elements[0].find("p")
-                break
-            logging.info(f"Paragraphs")
-            selector_idx += 1
-
-        review_text = "\n".join([paragraph.text for paragraph in paragraphs])
-        logging.info(review_text)
         
-        return review_text
+        text = self.parse_text(html = r.html)
+        logging.info(text)
+        
+        return text
