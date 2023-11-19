@@ -1,5 +1,5 @@
 from httpx import AsyncClient, HTTPError
-from requests_html import HTMLSession
+from requests_html import HTMLSession, AsyncHTMLSession
 from pydantic import BaseModel
 from pitchgpt.config import PitchGptConfig
 from tenacity import (
@@ -11,7 +11,6 @@ from tenacity import (
 )
 import asyncio
 import logging
-from bs4 import BeautifulSoup
 import nest_asyncio
 
 nest_asyncio.apply()
@@ -33,7 +32,6 @@ class ReviewFetcher(BaseModel):
         start: int,
         size: int,
     ):
-
         url = self.config.base_url.format(start = start, size = size)
         logging.info(f"URL: {url}")
 
@@ -68,14 +66,47 @@ class ReviewFetcher(BaseModel):
 
         return results
     
-    def get_review_text(self, url_suffix: str):
+    def get_review_text(self, url_suffix: str, sleep: int = 0):
         
         url = "https://pitchfork.com{url_suffix}".format(url_suffix = url_suffix)
         logging.info(f"URL: {url}")
         session = HTMLSession()
 
         r = session.get(url)
-        r.html.render(sleep = 1)
+        if r.status_code != 200:
+            raise HTTPError(f"HTTP Error: {r.status_code}")
+        
+        r.html.render(sleep = sleep)
+        div_selector_options = [
+            "[class='contents dropcap']",
+            "[class='body__inner-container']"
+        ]
+        elements = []
+        selector_idx = 0
+
+        while not elements and (selector_idx < len(div_selector_options)):
+            selector = div_selector_options[selector_idx]
+            elements = r.html.find(selector)
+            logging.info(f"Elements: {elements}")
+            if elements:
+                paragraphs = elements[0].find("p")
+                break
+            logging.info(f"Paragraphs")
+            selector_idx += 1
+
+        review_text = "\n".join([paragraph.text for paragraph in paragraphs])
+        logging.info(review_text)
+        
+        return review_text
+    
+    async def aget_review_text(self, url_suffix: str, sleep: int = 0):
+        
+        url = "https://pitchfork.com{url_suffix}".format(url_suffix = url_suffix)
+        logging.info(f"URL: {url}")
+        asession = AsyncHTMLSession()
+
+        r = await asession.get(url)
+        await r.html.arender(sleep = sleep)
         div_selector_options = [
             "[class='contents dropcap']",
             "[class='body__inner-container']"
